@@ -314,4 +314,29 @@ model Score = Method;
 means Method / tukey cldiff;
 run;
 
+proc logistic data="/home/u18376423/Rakesh/SAS_Programs/binary.sas7bdat" descending;
+  class rank / param=ref;
+  model admit = gre gpa rank;
+run;
+
+
+/* Cluster Analysis in SAS*/
+/*The PROC VARCLUS procedure in SAS/STAT performs clustering of variables, 
+it divides a set of variables by hierarchical clustering. */
+
+proc print data=SASHELP.IRIS;
+run;
+
+proc varclus data=SASHELP.IRIS MAXCLUSTERS=4;
+            var PetalWidth SepalWidth;
+run;
+
+/*The FASTCLUS procedure cluster analysis procedure performs k-means clustering 
+on the basis of distances computed from one or more variables*/
+
+proc print data=sashelp.cars;
+run;
+
+proc fastclus data=sashelp.cars maxclusters=20;
+            var EngineSize Cylinders;
 
