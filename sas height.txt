@@ -1,0 +1,45 @@
+/* Input the data */
+data Tball_data;
+    input Height Distance;
+    datalines;
+50 110
+50 143
+47 136
+50 118
+45 121
+49 130
+49 135
+48 129
+53 150
+48 124
+51 126
+53 146
+52 144
+47 124
+50 133
+50 128
+48 135
+47 129
+45 126
+48 118
+48 135
+47 129
+45 126
+48 118
+48 135
+47 129
+45 126
+53 142
+46 122
+47 119
+51 134
+46 132
+51 144
+50 132
+50 131
+;
+run;
+/* Regression Analysis */
+proc reg data=Tball_data;
+    model Distance = Height;
+run;
