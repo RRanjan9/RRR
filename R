@@ -1102,3 +1102,4 @@ RSS_x4 <- sum((Y_x4 - Y_hat_x4)^2)
 TSS_x4 <- sum((Y_x4 - mean(Y_x4))^2)
 R_x4 <- sqrt(1 - RSS_x4 / TSS_x4)
 cat("Multiple Correlation Coefficient (x4 ~ x1, x2):\n", R_x4, "\n")
+
