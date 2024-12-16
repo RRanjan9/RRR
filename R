@@ -1,0 +1,1083 @@
+#                       Practical 01
+# 1. Generate sufficient random numbers from exponential distribution where the parameter is of your choice. Let consider these generated numbers as a lifetime of the patients then obtain the patient lifetime using the following censoring schemes:
+
+# Right Censoring
+# Type-I Censoring Scheme
+# Type-II Censoring Scheme
+# Random Censoring
+# Left Censoring
+# Interval Censoring
+
+# Also compare the censored data with the complete data.
+
+set.seed(29)
+rate <- 0.1
+lifetimes <- rexp(100, rate)
+lifetimes
+summary(lifetimes)
+
+# Type 1 censoring
+ctime <- 15
+ctime
+cdata <- ifelse(lifetimes<=ctime,lifetimes, ctime)
+cstuts <- ifelse(lifetimes<=ctime,1, 0)
+type1.data <- cbind(cdata, cstuts)
+print(type1.data)
+
+
+# Type 2 Censoring
+ctime = sort(lifetimes)[80] 
+ctime
+cdata <- ifelse(lifetimes<=ctime,lifetimes, ctime)
+cstuts <- ifelse(lifetimes<=ctime,1, 0)
+type2.data <- cbind(cdata, cstuts)
+print(type2.data)
+
+
+# Random Censoring
+ctime <- rexp(100, rate)
+ctime
+cdata <- ifelse(lifetimes<=ctime,lifetimes, ctime)
+cstuts <- ifelse(lifetimes<=ctime,1, 0)
+random.data <- cbind(cdata, cstuts)
+print(random.data)
+
+# Left Censoring 
+ctime <- 3
+ctime
+cdata <- ifelse(lifetimes<=ctime, ctime, lifetimes)
+cstuts <- ifelse(lifetimes<=ctime, 0,1)
+left.data <- cbind(cdata, cstuts)
+print(left.data)
+
+# Interval Censoring
+
+intervals <- seq(0,60, 6)
+intervals
+freq <- table(cut(lifetimes, breaks = intervals))
+print(freq)
+
+
+
+
+
+
+
+
+
+#############################################################################
+#                            Practical 02
+# Obtain a sufficiently large sample from an exponential distribution under a Type II
+# censoring scheme. After generating the sample, calculate the maximum likelihood
+# (ML) estimate of the distribution parameter. Also, evaluate the performance of the
+# estimate by computing the bias, variance, and mean squared error (MSE) for different
+# sample sizes.
+
+
+
+table <- data.frame(
+  no_obs = c(),
+  no_cen_obs = c(),
+  lamda = c(),
+  lamda_hat = c(),
+  bias = c(),
+  variance = c(),
+  MSE = c()
+)
+lamda = 0.1
+no_of_cen_obs = c(10,20,30,40,50,60,70,80,90,100)
+
+for( k in no_of_cen_obs){
+lamda_tem <- numeric(100)
+for(i in 1:100){
+  set.seed(i+1)
+  lifetimes <- rexp(100, lamda)
+  ctime = sort(lifetimes)[k] 
+  cdata <- ifelse(lifetimes<=ctime,lifetimes, ctime)
+  lamda_tem[i] = k/sum(cdata)
+}
+var = var(lamda_tem)
+mse = sum((lamda_tem- lamda)^2)/100
+lamda_hat= mean(lamda_tem)
+bias = lamda_hat - lamda
+new_row = data.frame(no_obs = 100,
+              no_cen_obs = k,
+              lamda = lamda,
+              lamda_hat = lamda_hat,
+              bias = bias,
+              variance = var,
+              MSE = mse)
+table = rbind(table, new_row)
+
+}
+table
+
+
+
+
+
+
+
+#####################################################################################
+#                               Practical 03
+# Obtain a sufficiently large sample from a Weibull distribution under a Type I
+# censoring scheme. After generating the sample, calculate the maximum likelihood
+# (ML) estimate of the distribution parameters. Also, evaluate the performance of the
+# estimate by computing the bias, variance, and mean squared error (MSE) for different
+# sample sizes.
+
+# Parameters
+set.seed(123)
+n_values <- c(100, 200, 300)       # Sample sizes
+true_shape <- 2                    # True Weibull shape parameter
+true_scale <- 3                    # True Weibull scale parameter
+censoring_time <- 5                # Censoring time for Type-I censoring
+simulation <- 1000                 # Number of simulations
+
+# Log-likelihood function for censored Weibull data
+weibull_log_likelihood <- function(params, data, censoring_time) {
+  shape <- params[1]; scale <- params[2]
+  uncensored <- data[data <= censoring_time]
+  censored <- data[data > censoring_time]
+  
+  ll_uncensored <- sum(dweibull(uncensored, shape, scale, log = TRUE))
+  ll_censored <- sum(pweibull(censored, shape, scale, lower.tail = FALSE, log.p = TRUE))
+  
+  return(-(ll_uncensored + ll_censored))  
+}
+
+
+evaluate_performance <- function(n, shape, scale, censoring_time, simulation) {
+  shape_estimates <- scale_estimates <- numeric(simulation)
+  
+  for (i in 1:simulation) {
+    life <- rweibull(n, shape, scale)
+    censored_life <- pmin(life, censoring_time)
+    
+    fit <- optim(par = c(1, 1), fn = weibull_log_likelihood, data = censored_life,
+                 censoring_time = censoring_time, method = "L-BFGS-B", lower = c(0.1, 0.1))
+    shape_estimates[i] <- fit$par[1]
+    scale_estimates[i] <- fit$par[2]
+  }
+  
+
+  return(list(
+    bias_shape = mean(shape_estimates) - shape, 
+    bias_scale = mean(scale_estimates) - scale,
+    var_shape = var(shape_estimates), 
+    var_scale = var(scale_estimates),
+    mse_shape = mean((shape_estimates - shape)^2),
+    mse_scale = mean((scale_estimates - scale)^2)
+  ))
+}
+
+# Run simulations and collect results
+results <- data.frame()
+for (n in n_values) {
+  perf <- evaluate_performance(n, true_shape, true_scale, censoring_time, simulation)
+  results <- rbind(results, data.frame(
+    n = n, shape_hat = true_shape - perf$bias_shape, scale_hat = true_scale - perf$bias_scale,
+    bias_shape = perf$bias_shape, bias_scale = perf$bias_scale, 
+    var_shape = perf$var_shape, var_scale = perf$var_scale,
+    mse_shape = perf$mse_shape, mse_scale = perf$mse_scale
+  ))
+}
+
+print(results)
+
+
+
+
+
+
+
+
+#######################################################################################
+#                             Practical 04
+# Obtain a sufficiently large sample from a Weibull distribution under type II censoring
+# scheme. After generating the sample, calculate the maximum likelihood (ML)
+# estimate of the distribution parameters. Also, evaluate the performance of the estimate
+# by computing the bias, variance, and mean squared error (MSE) for different sample
+# sizes.
+
+# Parameters
+set.seed(123)
+n_values <- c(100, 200, 300)     # Sample sizes
+true_shape <- 2                  # True Weibull shape parameter
+true_scale <- 3                  # True Weibull scale parameter
+c2 <- 80                         
+simulation <- 1000               
+
+# Log-likelihood function for Type-II censored Weibull data
+weibull_log_likelihood <- function(params, data, c2) {
+  shape <- params[1]; scale <- params[2]
+  uncensored <- data[1:c2]                    # First c2 events are observed (uncensored)
+  censored_part <- (length(data) - c2) * log(pweibull(data[c2], shape, scale, lower.tail = FALSE))
+  ll_uncensored <- sum(dweibull(uncensored, shape, scale, log = TRUE))
+  return(-(ll_uncensored + censored_part))    # Negative log-likelihood
+}
+
+# Performance Evaluation for Type-II Censoring
+evaluate_performance <- function(n, shape, scale, c2, simulation) {
+  shape_estimates <- scale_estimates <- numeric(simulation)
+  
+  for (i in 1:simulation) {
+    # Generate and sort Weibull sample
+    life <- sort(rweibull(n, shape, scale))
+    
+    # Estimate parameters using MLE on censored data
+    fit <- optim(par = c(1, 1), fn = weibull_log_likelihood, data = life,
+                 c2 = c2, method = "L-BFGS-B", lower = c(0.1, 0.1))
+    shape_estimates[i] <- fit$par[1]
+    scale_estimates[i] <- fit$par[2]
+  }
+  
+  # Calculate bias, variance, and MSE
+  return(list(
+    bias_shape = mean(shape_estimates) - shape, 
+    bias_scale = mean(scale_estimates) - scale,
+    var_shape = var(shape_estimates), 
+    var_scale = var(scale_estimates),
+    mse_shape = mean((shape_estimates - shape)^2),
+    mse_scale = mean((scale_estimates - scale)^2)
+  ))
+}
+
+# Run simulations and collect results for different sample sizes
+results <- data.frame()
+for (n in n_values) {
+  perf <- evaluate_performance(n, true_shape, true_scale, c2, simulation)
+  results <- rbind(results, data.frame(
+    n = n, shape_hat = true_shape - perf$bias_shape, scale_hat = true_scale - perf$bias_scale,
+    bias_shape = perf$bias_shape, bias_scale = perf$bias_scale, 
+    var_shape = perf$var_shape, var_scale = perf$var_scale,
+    mse_shape = perf$mse_shape, mse_scale = perf$mse_scale
+  ))
+}
+
+print(results)
+
+
+
+
+
+
+
+
+
+
+#######################################################################################
+#                             Practical 05
+# The following data represents the readmission times(weeks) for 21 people of
+# leukemia patients. Group 1 is the treatment group and group 2 is the placebo group
+
+# Group 1(treatment): 6,6,6,7,10,13,16,22,23,6+,9+,10+,11+,17+,19+,20+,25+,32+,32+,34+,35+
+
+# Group 2(placebo) : 1,1,2,2,3,4,4,5,5,8,8,8,8,11,11,12,12,15,17,22,23
+
+# Note: + denotes censored
+# Estimate the survival and hazard curve for both group by the Kaplan-Meier method.
+
+G1 <- c(6, 6, 6, 7, 10, 13, 16, 22, 23, 6, 9, 10, 11, 17, 19, 20, 25, 32, 32, 34, 35)  
+G1_event <- c(rep(1,9), rep(0, 12))
+G1_data <- data.frame(time = G1, event = G1_event)
+
+G2 <- c(1, 1, 2, 2, 3, 4, 4, 5, 5, 8, 8, 8, 8, 11, 11, 12, 12, 15, 17, 22, 23)
+G2_event <- c(rep(1,21))
+G2_data <- data.frame(time = G2, event = G2_event)
+# Sort the data 
+#G1_data = G1_data[order(G1_data$time),]
+#G2_data = G2_data[order(G2_data$time),]
+
+
+km_estimator <- function(data){
+  data = data[order(data$time),]
+  n <- length(data$time)
+  data$r <- 1:n
+  for(i in 1:n){
+    if(data$event[i] == 1){
+      data$prob[i] <- (n-data$r[i])/(n-data$r[i]+1) 
+    }
+    else{
+      data$prob[i] =0
+    }
+  }
+  data1 <- data[data$event==1,]
+  data1$sur <- cumprod(data1$prob)
+  data1$cum_harz <- -log(data1$sur)
+  return(data1)
+}
+
+km1 <- km_estimator(G1_data)
+km1
+km2 <- km_estimator(G2_data)
+km2
+plot(km1$time, km1$sur, type= 's', xlim = c(0,35), ylim = c(0,1), ylab = 'Probability', 
+      xlab = "Time")
+lines(km2$time, km2$sur, type= 's', col = "blue")
+
+plot(km1$time, km1$cum_harz, type= 's', xlim = c(0,35), ylim = c(0,1), ylab = 'Probability', 
+     xlab = "Time")
+lines(km2$time, km2$cum_harz, type= 's', col = "blue")
+
+
+
+
+
+
+
+
+#######################################################################################
+#                             Practical 06
+# A clinical trial investigates the effectiveness of a new drug on 10 lung cancer patients.
+# The study started in January 2011 and continued till December 2012. The data is
+# divided into two groups. Group A (treated with the new drug) and group B (treated with
+# the standard treatment). The survival time is given in months. During the trial, some
+# people joined. The data looks like below:
+data <- data.frame(
+  patient_id = 1:10,
+  Group = c(rep("A",5),rep("B",5)),
+  survival_time = c(5,12,18,20,24,8,10,15,16,22),
+  censored = c(1,1,0,0,1,1,0,1,1,1)
+)
+View(data)
+# Calculate and plot the PL estimate of the probability of surviving 2 years or more for
+# both groups. Also, comment on the plots.
+
+# b) Suppose that 10 patients joined at the beginning of 24 months; during those months
+# 4 patients died and 6 patients survived. Estimate the proportion of patients in the
+# population surviving for 24 months or more if the study terminates at 24 months.
+
+### R CODE
+
+# Create the data frame
+data <- data.frame(
+  patient_id = 1:10,
+  Group = c(rep("A", 5), rep("B", 5)),
+  survival_time = c(5, 12, 18, 20, 24, 8, 10, 15, 16, 22),
+  censored = c(1, 1, 0, 0, 1, 1, 0, 1, 1, 1)
+)
+
+# Define a function to calculate Kaplan-Meier survival estimates
+kaplan_meier <- function(survival_time, censored) {
+  # Create a data frame of unique survival times
+  unique_times <- sort(unique(survival_time))
+  
+  # Initialize survival probabilities
+  survival_prob <- data.frame(time = unique_times, probability = 1)
+  
+  # Calculate the survival probability at each time point
+  for (i in 1:length(unique_times)) {
+    # Find patients who experienced events (not censored) at this time
+    events_at_time <- sum(survival_time == unique_times[i] & censored == 0)
+    # Find the number of patients at risk at this time
+    at_risk_at_time <- sum(survival_time >= unique_times[i])
+    
+    if (at_risk_at_time > 0) {
+      survival_prob$probability[i] <- survival_prob$probability[i-1] * (1 - events_at_time / at_risk_at_time)
+    }
+  }
+  return(survival_prob)
+}
+
+# Kaplan-Meier estimate for group A
+data_A <- data[data$Group == "A",]
+KM_A <- kaplan_meier(data_A$survival_time, data_A$censored)
+
+# Kaplan-Meier estimate for group B
+data_B <- data[data$Group == "B",]
+KM_B <- kaplan_meier(data_B$survival_time, data_B$censored)
+
+# Plot Kaplan-Meier survival curves
+plot(KM_A$time, KM_A$probability, type = "s", col = "blue", xlab = "Time (months)", ylab = "Survival Probability", main = "Kaplan-Meier Survival Curve")
+lines(KM_B$time, KM_B$probability, type = "s", col = "red")
+legend("topright", legend = c("Group A", "Group B"), col = c("blue", "red"), lty = 1)
+
+survival_A_24 <- KM_A$probability[which(KM_A$time >= 24)[1]]
+survival_B_24 <- KM_B$probability[which(KM_B$time >= 24)[1]]
+
+cat("Survival probability for Group A at 24 months:", survival_A_24, "\n")
+cat("Survival probability for Group B at 24 months:", survival_B_24, "\n")
+
+surviving_24_initial <- sum(data$survival_time >= 24 & data$censored == 1) / length(data$survival_time)
+
+new_patients_survived <- 6
+new_patients_total <- 10
+new_patients_surviving_prop <- new_patients_survived / new_patients_total
+
+overall_surviving_24 <- (sum(data$survival_time >= 24 & data$censored == 1) + new_patients_survived) / (length(data$survival_time) + new_patients_total)
+
+cat("Overall survival proportion for 24 months or more:", overall_surviving_24, "\n")
+
+
+
+
+
+
+
+
+
+
+#######################################################################################
+#                             Practical 07
+# 1. Generate sufficient random numbers from a normal distribution where the parameters
+# are of your choices. Construct a normal probability paper and show that the generated
+# sample gives the evidence to belong to the normal distribution. Also, comment on
+# your result.
+
+# 2. Generate sufficient random numbers from a distribution as per your roll number. Let's
+# consider these generated numbers as the failure time of machines. First construct a
+# probability paper for fitting purpose and then verify that the generated data well fits on
+# the probability paper. Also, comment on your result.
+
+# S.No. Model Name    Exam Roll No.
+# 1.    Exponential   01-15
+# 2.    Gamma         16-30
+# 3.    Weibull       31-45
+# 4.    Lognormal     45-60
+
+### Noraml Distribution
+set.seed(29)
+n <- 1000
+mean <- 10
+sd <- 5
+sample <- rnorm(n, mean, sd)
+print(sample)
+
+q1 <- qnorm(seq(0.01,0.99,0.05))
+q2 <- qnorm(seq(0.01,0.99,0.05))
+plot(q1,q2, type ='n', xlab = "Sample Quantiles", ylab = 'Theoretical Quantiles')
+abline(v= q1)
+abline(h= q1)
+
+sq <- sort(sample)
+tq <- qnorm(seq(0.01, 0.99, length= n))
+points(sq, tq, col =2, pch= 18)
+abline(a=0 , b=1, col = 'blue')
+
+### Exponential
+set.seed(29)
+n <- 100
+rate = 0.01
+sample <- rexp(n, rate)
+print(sample)
+
+q1 <- qexp(seq(0.01,0.99,0.05), rate = 0.01)
+q2 <- qexp(seq(0.01,0.99,0.05), rate =  0.01)
+plot(q1,q2, type ='n', xlab = "Sample Quantiles", ylab = 'Theoretical Quantiles')
+abline(v= q1)
+abline(h= q1)
+sq <- sort(sample)
+tq <- qexp(seq(0.01, 0.99, length= n), rate = 0.01)
+points(sq, tq, col =2, pch= 18)
+abline(a=0 , b=1, col = 'blue')
+
+
+###  Gamma 
+
+set.seed(29)
+n <- 100
+shape = 10
+sample <- rgamma(n, shape)
+print(sample)
+
+q1 <- qgamma(seq(0.01,0.99,0.05), shape = 10)
+q2 <- qgamma(seq(0.01,0.99,0.05), shape =  10)
+plot(q1,q2, type ='n', xlab = "Sample Quantiles", ylab = 'Theoretical Quantiles')
+abline(v= q1)
+abline(h= q1)
+sq <- sort(sample)
+tq <- qgamma(seq(0.01, 0.99, length= n), shape =10)
+points(sq, tq, col =2, pch= 18)
+abline(a=0 , b=1, col = 'blue')
+
+### Weibull 
+
+set.seed(29)
+n <- 100
+shape = 10
+scale = 1
+sample <- rweibull(n, shape,scale = 1)
+print(sample)
+
+q1 <- qweibull(seq(0.01,0.99,0.05), shape = 10)
+q2 <- qweibull(seq(0.01,0.99,0.05), shape =  10)
+plot(q1,q2, type ='n', xlab = "Sample Quantiles", ylab = 'Theoretical Quantiles')
+abline(v= q1)
+abline(h= q1)
+sq <- sort(sample)
+tq <- qweibull(seq(0.01, 0.99, length= n), shape =10)
+points(sq, tq, col =2, pch= 18)
+abline(a=0 , b=1, col = 'blue')
+
+### Lognormal 
+
+
+
+
+
+
+
+
+#######################################################################################
+#                             Practical 08
+data <- data.frame(patient_ID = 1:30,
+                   failure_time = c(16.5,11.7,25.3,7.8,19.2,10.6,22.7,5.1,13.9,24.6,17.3,
+                                    8.4,28.2,6.7,20.5,15.4,9.9,18.7,30.6,12.3,21.1,4.9,
+                                    13.5,16.1,6.2,19.8,27.4,14.7,23.9,26.5))
+# Suppose that the above data has been extracted from an experiment. The data represents
+# the lifetime of patients. First, make a probability plot for the data and verify the
+# distribution from which the data has been generated, and then estimate the parameter
+# by using a graphical method.
+
+qqnorm(data$failure_time, main = "Q-Q Plot for Failure Time")
+qqline(data$failure_time, col = "red")
+
+qqnorm(data$failure_time, main = "Q-Q Plot against Normal Distribution")
+qqline(data$failure_time, col = "red")
+
+mean_failure_time <- mean(data$failure_time)
+sd_failure_time <- sd(data$failure_time)
+
+cat("Estimated Mean: ", mean_failure_time, "\n")
+cat("Estimated Standard Deviation: ", sd_failure_time, "\n")
+
+
+
+
+
+
+
+
+
+#######################################################################################
+#                             Practical 09
+
+# The remission times of 42 patients with acute leukemia were reported in a clinical trial
+# to assess the ability of 6-mercaptopurine(6-MP) to maintain remission. Patients were
+# randomly selected to receive 6-MP or placebo. The study was terminated after one year.
+# The following remission times, in weeks, were recorded:
+
+#6-MP (21 patients) : 6,6,6,7,10,13,16,22,23,6+,9+,10+,11+,17+,19+,20+,25+,32+,32+,34+,35+
+# Placebo (21 patients) : 1,1,2,2,3,4,4,5,5,8,8,8,8,11,11,12,12,15,17,22,23
+
+# a) Now, fit a distribution to the remission duration of 6-MP patients using the hazard
+# plotting technique.
+# b) Estimate the parameter/parameters of the distribution.
+
+# Data: Remission times for 6-MP group
+remission_times_6MP <- c(6, 6, 6, 7, 10, 13, 16, 22, 23, 6, 9, 10, 11, 17, 19, 20, 25, 32, 32, 34, 35)
+status_6MP <- c(rep(1, 9), rep(0, 12))  # 1 = observed, 0 = censored
+
+# Sort remission times in increasing order
+sorted_times <- sort(remission_times_6MP)
+
+# Hazard plotting: Create ranks for plotting
+ranks <- rank(sorted_times)
+
+# Calculate the cumulative hazard H(t)
+n <- length(sorted_times)
+cum_hazard <- (ranks - 0.5) / n
+
+# Plot the empirical hazard function (log-log plot)
+plot(log(sorted_times), log(-log(1 - cum_hazard)), 
+     xlab = "log(Time (weeks))", ylab = "log(-log(1 - F(t)))", 
+     main = "Hazard Plot for 6-MP Patients", pch = 16)
+
+
+plot(sorted_times, -log(1 - cum_hazard), 
+     xlab = "log(Time (weeks))", ylab = "log(-log(1 - F(t)))", 
+     main = "Hazard Plot for 6-MP Patients", pch = 16)
+
+
+# Estimate Weibull parameters (Shape and Scale)
+# Linear regression on log-log transformed data
+X <- log(sorted_times)
+Y <- log(-log(1 - cum_hazard))
+
+# Linear regression (manually without using lm() function)
+n <- length(X)
+x_mean <- mean(X)
+y_mean <- mean(Y)
+
+# Calculate slope (beta) and intercept (alpha)
+beta <- sum((X - x_mean) * (Y - y_mean)) / sum((X - x_mean)^2)
+alpha <- y_mean - beta * x_mean
+
+# Weibull parameters:
+# Shape parameter (k) is the slope
+shape_weibull <- beta
+
+# Scale parameter (lambda) can be derived from intercept
+scale_weibull <- exp(-alpha / shape_weibull)
+
+cat("Estimated Weibull Parameters: \n")
+cat("Shape (k):", shape_weibull, "\n")
+cat("Scale (lambda):", scale_weibull, "\n")
+
+# Plot the fitted Weibull line
+lines(X, alpha + beta * X, col = "red")
+legend("bottomright", legend = c("Data", "Weibull Fit"), col = c("black", "red"), lty = 1)
+
+
+
+
+
+
+
+
+
+#######################################################################################
+#                             Practical 10
+
+# The following dataset is collected from a clinical trial in which researchers are testing
+# the effectiveness of a new drug compared to a standard drug in increasing the survival
+# time of cancer patients. Use a non-parametric method such as the Cox-Mantel test to
+# determine if the new drug prolongs survival significantly compared to the standard
+# drug.
+
+# New drug  : 10, 22, 12+ , 15+, 17+, 19+, 23+
+# Standard drug: 7,11,14,17,18,18,19
+
+
+lifetimes <- data.frame(
+  time = c(10, 22, 12, 15, 17, 19, 23, 7, 11, 14, 17, 18, 18, 19),
+  event = c(1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1),
+  group = c(rep("A", 7), rep("B", 7))
+)
+
+r2 <- sum(lifetimes$group =="B" & lifetimes$event == 1)
+
+df_cen <- lifetimes[lifetimes$event == 1, ]
+time_counts <- data.frame(table(df_cen$time))
+time_counts$Var1 <- as.numeric(as.character(time_counts$Var1))  
+
+df <- data.frame(time = c(), m = c(), G1 = c(), G2 = c(), R = c(), A = c())
+
+
+for (i in 1:nrow(time_counts)) {
+  time_point <- time_counts$Var1[i]
+  
+  G1 <- sum(lifetimes$group == "A" & lifetimes$time >= time_point)
+  G2 <- sum(lifetimes$group == "B" & lifetimes$time >= time_point)
+  
+  R <- G1 + G2
+  A <- G2 / R  
+  
+  df_row <- data.frame(
+    time = time_point,
+    m = time_counts$Freq[i],
+    G1 = G1,
+    G2 = G2,
+    R = R,
+    A = A
+  )
+  df <- rbind(df, df_row)
+}
+print(df)
+
+U <- r2 - sum(df$m * df$A)
+
+I <- sum(df$m* (df$R - df$m)*df$A*(1-df$A)/(df$R - 1))
+
+Z <- U/sqrt(I)
+cat("Cox-Mantel Test Statistic (Z):", Z)
+
+
+
+
+
+
+#######################################################################################
+#                             Practical 11
+
+# The following dataset is collected from a clinical trial in which researchers are testing the
+# effectiveness of a new drug compared to a standard drug in increasing the survival time of cancer
+# patients. Use a non-parametric method such as the Cox-Mantel test to determine if the new drug
+# prolongs survival significantly compared to the standard drug.
+
+# Data for the clinical trial
+# '+' indicates censored data
+nd <- c(10, 22, 12, 15, 17, 19, 23)
+nds <- c(1, 1, 0, 0, 0, 0, 0)  # 1: event occurred, 0: censored
+
+sd <- c(7, 11, 14, 17, 18, 18, 19)
+sds <- c(1, 1, 1, 1, 1, 1, 1)  # All events occurred
+
+# Combine data into a single data frame
+time <- c(nd, sd)
+sts <- c(nds, sds)
+grp <- c(rep("ND", length(nd)), rep("SD", length(sd)))
+
+# Function to perform the log-rank test without using any package
+lrt <- function(time, sts, grp) {
+  ut <- sort(unique(time))
+  k <- length(ut)
+  
+  # Initialize variables
+  obs <- rep(0, 2)
+  exp <- rep(0, 2)
+  var <- 0
+  
+  for (t in ut) {
+    # At risk counts
+    arn <- sum(time[grp == "ND"] >= t)
+    ars <- sum(time[grp == "SD"] >= t)
+    art <- arn + ars
+    
+    # Events at time t
+    en <- sum(time[grp == "ND"] == t & sts[grp == "ND"] == 1)
+    es <- sum(time[grp == "SD"] == t & sts[grp == "SD"] == 1)
+    et <- en + es
+    
+    # Update observed and expected events
+    obs[1] <- obs[1] + en
+    obs[2] <- obs[2] + es
+    
+    if (art > 0) {
+      exn <- arn * (et / art)
+      exs <- ars * (et / art)
+      exp <- c(exp[1] + exn, exp[2] + exs)
+      
+      # Variance contribution
+      var <- var + (arn * ars * et * (art - et)) / (art^2 * (art - 1))
+    }
+  }
+  
+  # Calculate test statistic
+  chi_sq <- sum((obs - exp)^2) / var
+  p_val <- 1 - pchisq(chi_sq, df = 1)
+  
+  list(chi_sq = chi_sq, p_val = p_val)
+}
+
+# Perform the manual log-rank test
+lr_res <- lrt(time, sts, grp)
+
+# Output the results
+cat("Log-Rank Test Results (Manual):\n")
+cat("Chi-Square Statistic:", lr_res$chi_sq, "\n")
+cat("P-Value:", lr_res$p_val, "\n")
+
+# Interpretation
+if (lr_res$p_val < 0.05) {
+  cat("The difference in survival between the new drug and the standard drug is statistically significant.\n")
+} else {
+  cat("There is no statistically significant difference in survival between the new drug and the standard drug.\n")
+}
+
+
+
+
+
+#######################################################################################
+#                             Practical 12
+
+# Estimate the parameters of Cox Proportional hazard model using the Lung dataset inbuilt in survival package. 
+# Perform this with and without package.
+
+# Load required library
+library(survival)
+
+# Load the Lung dataset
+data("lung")
+
+# Explore the dataset
+head(lung)
+
+# Cox Proportional Hazards Model using the survival package
+cox_model <- coxph(Surv(time, status) ~ age + sex + ph.ecog, data = lung)
+summary(cox_model)
+
+# Cox Proportional Hazards Model without using the survival package
+# Function to compute Cox model coefficients using Newton-Raphson method
+cox_no_package <- function(time, status, covariates, tol = 1e-6, max_iter = 100) {
+  n <- length(time)
+  X <- as.matrix(covariates)
+  beta <- rep(0, ncol(X))
+  iter <- 0
+  
+  while (iter < max_iter) {
+
+    risk <- exp(X %*% beta)
+    
+    cum_risk <- rev(cumsum(rev(risk)))
+    ind_risk <- risk / cum_risk
+    
+    score <- t(X) %*% (status - ind_risk)
+    
+    W <- diag(as.vector(ind_risk * (1 - ind_risk)))
+    info <- t(X) %*% W %*% X
+    
+    beta_new <- beta + solve(info) %*% score
+    if (sum(abs(beta_new - beta)) < tol) {
+      break
+    }
+    beta <- beta_new
+    iter <- iter + 1
+  }
+  
+  list(coefficients = beta, iterations = iter, converged = (iter < max_iter))
+}
+
+# Prepare data
+covariates <- lung[, c("age", "sex", "ph.ecog")]
+time <- lung$time
+status <- lung$status == 2  
+
+
+cox_result <- cox_no_package(time, status, covariates)
+cox_result
+
+# Compare results
+cat("Cox Model (Package):\n")
+print(summary(cox_model))
+
+cat("Cox Model (Custom Implementation):\n")
+print(cox_result)
+
+
+
+
+
+
+#######################################################################################
+#                             Practical 13
+
+# In a competing risks model with two causes of failure, the times to failure
+# T1 and T2 follow exponential distributions with cause-specific hazard rates
+# λ1 = 0.02 and λ2 = 0.03, respectively. The observed failure time T is given
+# by T = min(T1, T2, C), where C is an independent censoring time uniformly
+# distributed on [0, 100]. δ is event indicator.
+# (a) Simulate n = 1000 observations of (T, δ).
+# (b) Using the simulated data, estimate the cause-specific hazards λ1 and
+# λ2.
+# (c) Compare the estimated hazards with the true values λ1 = 0.02 and
+# λ2 = 0.03.
+
+
+set.seed(123)
+
+n <- 1000 
+lambda1 <- 0.02 
+lambda2 <- 0.03  
+censor_upper <- 100  
+
+
+T1 <- rexp(n, rate = lambda1) 
+T2 <- rexp(n, rate = lambda2)  
+C <- runif(n, min = 0, max = censor_upper)  
+
+T <- pmin(T1, T2, C) 
+delta <- ifelse(T == T1, 1, ifelse(T == T2, 2, 0))  
+
+data <- data.frame(T = T, delta = delta)
+
+lambda1_hat <- sum(delta == 1) / sum(T)
+lambda2_hat <- sum(delta == 2) / sum(T)
+
+cat("True hazard rates:\n")
+cat("Lambda1:", lambda1, "\n")
+cat("Lambda2:", lambda2, "\n\n")
+
+cat("Estimated hazard rates:\n")
+cat("Lambda1_hat:", round(lambda1_hat, 4), "\n")
+cat("Lambda2_hat:", round(lambda2_hat, 4), "\n")
+
+hist(T[delta == 0], breaks = 30, col = "gray", xlim = range(T), main = "Histogram of Observed Times by Event Type",
+     xlab = "Observed Time", ylab = "Frequency")
+hist(T[delta == 1], breaks = 30, col = rgb(0, 0, 1, 0.5), add = TRUE)  # Cause 1
+hist(T[delta == 2], breaks = 30, col = rgb(1, 0, 0, 0.5), add = TRUE)  # Cause 2
+legend("topright", legend = c("Censored", "Cause 1", "Cause 2"), fill = c("gray", rgb(0, 0, 1, 0.5), rgb(1, 0, 0, 0.5)))
+
+
+
+
+
+#######################################################################################
+#                             Practical ML 
+
+# Generate 100 obs from a gamma dist with shape par = 2 and scale par = 5. 
+# obtain kernel density estimate using the Guassian kernel and plot these estimates.
+
+
+scale <- 5
+shape <- 2
+set.seed(987)
+data <- rgamma(100, shape = shape, scale = scale)
+
+keanel <- function(x) {
+  return((1 / sqrt(2 * pi)) * exp(-0.5 * x^2))
+}
+
+# Freedman-Diaconis Rule to calculate bandwidth
+bd_fd <- function(data) {
+  iqr <- IQR(data)
+  n <- length(data)
+  return(2 * iqr / n^(1/3))  # Bandwidth formula
+}
+
+# Kernel Density Estimate function
+kde <- function(data, x_vals, bw) {
+  n <- length(data)
+  kde_vals <- numeric(length(x_vals))
+  
+  for (i in seq_along(x_vals)) {
+    kde_vals[i] <- sum(keanel((x_vals[i] - data) / bw)) / (n * bw)
+  }
+  return(kde_vals)
+}
+
+bw <- bd_fd(data)
+
+x_vals <- seq(min(data), max(data), length.out = 1000)
+
+kde_vals <- kde(data, x_vals, bw)
+
+hist(data, breaks = 10, probability = TRUE,
+     main = "Kernel Density Estimate",
+     xlab = "Value", ylab = "Density", border = "blue")
+lines(x_vals, kde_vals, col = "red", lwd = 2)
+legend("topright", legend = c("Hist", "KDE"),
+       fill = c(rgb(0.8, 0.8, 0.8, 0.4), "red"), border = "blue")
+
+
+
+
+
+#######################################################################################
+#                             Practical TIME SERIES
+
+# Q1. For the 'Nile' dataset available in R, obtain the results given below by writing a suitable R program.
+# Autocorrelation up to order three.
+# Partial Autocorrelation.
+# Also plot these using suitable diagram.
+
+
+
+data("Nile")
+
+acf <- function(x, l) {
+  n <- length(x)
+  m <- mean(x)
+  num <- sum((x[1:(n - l)] - m) * (x[(l + 1):n] - m))
+  denom <- sum((x - m)^2)
+  return(num / denom)
+}
+pacf <- function(x, l) {
+  r <- sapply(0:l, function(k) acf(x, k))
+  R <- toeplitz(r[1:l])
+  phi <- solve(R, r[2:(l + 1)])
+  return(phi[l])
+}
+
+lags <- 1:3
+acf_vals <- sapply(lags, function(l) acf(Nile, l))
+pacf_vals <- sapply(lags, function(l) pacf(Nile, l))
+
+# Print results
+cat("ACF (Lag 1 to 3):\n", acf_vals, "\n\n")
+cat("PACF (Lag 1 to 3):\n", pacf_vals, "\n\n")
+
+# Plot results
+par(mfrow = c(1, 2))
+barplot(acf_vals, names.arg = lags, col = "skyblue", main = "ACF", xlab = "Lag", ylab = "ACF")
+barplot(pacf_vals, names.arg = lags, col = "pink", main = "PACF", xlab = "Lag", ylab = "PACF")
+
+
+
+
+#######################################################################################
+#                             Practical Multivarite 
+
+# a)	Find the estimates of parameters of conditional distribution of (x3, x4) given (x1, x2) i.e. find S21S11-1 and S22.1=S22-S21S11-1S12
+# b)	Find the partial correlation r34.12
+# c)	Use Fisher’s  Z to find a confidence interval for 34.12 with confidence 0.95
+# d)	Find the sample multiple correlation coefficients between x3 and (x1, x2) and between x4 and (x1, x2)
+# e)	Test the hypothesis that x3 is independent of (x1, x2) and x4  is independent of (x1, x2)
+
+x1 <- c(191,195,181,183,176,208,189,197,188,192,179,183,174,190,188,163,195,186,181,175,192,174,176,197,190)
+x2 <- c(155,149,148,153,144,157,150,159,152,150,158,147,150,159,151,137,155,153,145,140,154,143,139,167,163)
+x3 <- c(179,201,185,188,171,192,190,189,197,187,186,174,185,195,187,161,183,173,182,165,185,178,176,200,187)
+x4 <- c(145,152,149,149,142,152,149,152,159,151,148,147,152,157,158,130,158,148,146,137,152,147,143,158,150)
+
+
+# Creating Matrix
+data <- cbind(x1,x2,x3,x4)
+
+# 1. Mean Vector (MLE of μ)
+n <- nrow(data)
+mean_vector <- apply(data, 2, function(col) sum(col) / n) # Manual mean calculation
+cat("Mean Vector (MLE of μ):\n")
+print(mean_vector)
+
+# 2. Covariance Matrix (MLE of Σ)
+cov_matrix <- matrix(0, ncol = 4, nrow = 4)
+for (i in 1:4) {
+  for (j in 1:4) {
+    cov_matrix[i, j] <- sum((data[, i] - mean_vector[i]) * (data[, j] - mean_vector[j])) / (n - 1)
+  }
+}
+cat("Covariance Matrix (MLE of Σ):\n")
+print(cov_matrix)
+
+# 3. Correlation Matrix (ρ)
+cor_matrix <- matrix(0, ncol = 4, nrow = 4)
+for (i in 1:4) {
+  for (j in 1:4) {
+    cor_matrix[i, j] <- cov_matrix[i, j] / sqrt(cov_matrix[i, i] * cov_matrix[j, j])
+  }
+}
+cat("Correlation Matrix (ρ):\n")
+print(cor_matrix)
+
+# 4. Conditional Distribution Parameters
+S11 <- cov_matrix[1:2, 1:2]      # Sub-matrix for (x1, x2)
+S12 <- cov_matrix[1:2, 3:4]      # Sub-matrix between (x1, x2) and (x3, x4)
+S21 <- t(S12)                    # Transpose of S12
+S22 <- cov_matrix[3:4, 3:4]      # Sub-matrix for (x3, x4)
+# Solving for S11 Inverse using Manual Inversion (2x2 matrix)
+inv_S11 <- matrix(0, 2, 2)
+det_S11 <- S11[1, 1] * S11[2, 2] - S11[1, 2] * S11[2, 1]
+inv_S11[1, 1] <- S11[2, 2] / det_S11
+inv_S11[2, 2] <- S11[1, 1] / det_S11
+inv_S11[1, 2] <- -S11[1, 2] / det_S11
+inv_S11[2, 1] <- -S11[2, 1] / det_S11
+
+# Conditional Covariance: S22.1 = S22 - S21 * inv(S11) * S12
+S22_1 <- S22 - S21 %*% inv_S11 %*% S12
+cat("Conditional Covariance Matrix (S22.1):\n")
+print(S22_1)
+
+# 5. Partial Correlation Between x3 and x4 Given x1, x2
+inv_cov <- solve(cov_matrix) # Manually inverted covariance matrix using built-in solve()
+r34.12 <- -inv_cov[3, 4] / sqrt(inv_cov[3, 3] * inv_cov[4, 4])
+cat("Partial Correlation r34.12:\n", r34.12, "\n")
+
+# 6. Fisher's Z for Confidence Interval
+z_value <- 0.5 * log((1 + r34.12) / (1 - r34.12)) # Fisher's Z-transform
+se <- 1 / sqrt(n - 4)
+lower <- tanh(z_value - 1.96 * se)
+upper <- tanh(z_value + 1.96 * se)
+cat("95% Confidence Interval for r34.12:\n")
+cat("Lower Bound:", lower, "\nUpper Bound:", upper, "\n")
+
+# 7. Sample Multiple Correlation Coefficient
+# Manual Calculation for x3 ~ (x1, x2)
+X <- as.matrix(cbind(1, data[, 1:2]))  # Adding intercept term
+Y_x3 <- data[, 3]
+beta_x3 <- solve(t(X) %*% X) %*% t(X) %*% Y_x3  # Regression Coefficients
+Y_hat_x3 <- X %*% beta_x3
+RSS_x3 <- sum((Y_x3 - Y_hat_x3)^2)
+TSS_x3 <- sum((Y_x3 - mean(Y_x3))^2)
+R_x3 <- sqrt(1 - RSS_x3 / TSS_x3)
+cat("Multiple Correlation Coefficient (x3 ~ x1, x2):\n", R_x3, "\n")
+
+#Calculation for x4 ~ (x1, x2)
+Y_x4 <- data[, 4]
+beta_x4 <- solve(t(X) %*% X) %*% t(X) %*% Y_x4
+Y_hat_x4 <- X %*% beta_x4
+RSS_x4 <- sum((Y_x4 - Y_hat_x4)^2)
+TSS_x4 <- sum((Y_x4 - mean(Y_x4))^2)
+R_x4 <- sqrt(1 - RSS_x4 / TSS_x4)
+cat("Multiple Correlation Coefficient (x4 ~ x1, x2):\n", R_x4, "\n")
